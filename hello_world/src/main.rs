@@ -1,73 +1,65 @@
 use std::fs::File;
-use std::io::{self, Read, Write};
-use std::path::Path;
+use std::io::{Write, BufReader, BufRead};
 
-#[derive(Debug)]
-struct Car {
-    name:String,
-    car: String,
-    color: String,
-    year: u32,
+struct Book {
+    title: String,
+    author: String,
+    year: u16,
 }
 
-#[derive(Debug)]
-struct Config
-{
-    car: Car,
-}
-
-fn create_and_write_to_file() {
-    //let mut file = File::create("user_info.txt").unwrap();
-    let mut buffer = String::new();
-
-    print!("What's is name?");
-    io::stdout().flush().unwrap();
-    io::stdin().read_line(&mut buffer).unwrap();
-    let name = buffer.trim().to_string();
-    buffer.clear();
-
-    print!("What's car do you have?");
-    io::stdout().flush().unwrap();
-    io::stdin().read_line(&mut buffer).unwrap();
-    let car_type = buffer.trim().to_string();
-    buffer.clear();
-
-    print!("What color is your car?");
-    io::stdout().flush().unwrap();
-    io::stdin().read_line(&mut buffer).unwrap();
-    let color = buffer.trim().to_string();
-    buffer.clear();
-
-    print!("What year is your car?");
-    io::stdout().flush().unwrap();
-    io::stdin().read_line(&mut buffer).unwrap();
-    let year: u32 = buffer.trim().parse().unwrap();
-
-    let car_info = Car { name, car:car_type, color, year };
-    let your_car_info = Config {car: car_info};
-
-    let mut file = File::create("user_info.txt").unwrap();
-    writeln!(file, "{:?}", your_car_info).unwrap();
-
-    println!("Hi {}, you're car is {} and the color is {} and it's year is {}!", your_car_info.car.name, your_car_info.car.car, your_car_info.car.color, your_car_info.car.year);
-}
-
-fn read_and_print_file() 
-{
-    let path = "user_info.txt";
-    let mut contents = String::new();
-
-    if Path::new(path).exists()
+fn save_books(books: &Vec<Book>, filename: &str) {
+    // TODO: Implement this function
+    // Hint: Use File::create() and write!() macro
+    let mut file = File::create(filename).unwrap();
+    for book in books
     {
-        let mut file = File::open(path).unwrap();
-        file.read_to_string(&mut contents).unwrap();
-        println!("Your car information is:\n{}", contents);
-    };
+        writeln!(file," {}, {}, {}", book.title, book.author, book.year).unwrap();
+    }
     
 }
 
-fn main() 
-{
-    create_and_write_to_file();
-    read_and_print_file();
+fn load_books(filename: &str) -> Vec<Book> {
+    // TODO: Implement this function
+    // Hint: Use File::open() and BufReader
+    let file = File::open(filename).unwrap();
+    let reader = BufReader::new(file);
+
+    //this makes books mutability and creates new books 
+    let mut books = Vec::new();
+
+
+    for line in reader.lines()
+    {
+        //loop line 
+        let line = line.unwrap();
+        //would split the string with a ,(from line 16) the make them
+        //into substring seprating them 
+        let parts: Vec<&str> = line.split(',').collect();
+
+        //place them in order 
+        if parts.len() == 3
+        {
+            let title = parts[0].trim().to_string();
+            let author = parts[1].trim().to_string();
+            let year = parts[2].trim().parse::<u16>().unwrap();
+            books.push(Book {title, author, year});
+        }
+    }
+    books
+}
+
+fn main() {
+    let books = vec![
+        Book { title: "1984".to_string(), author: "George Orwell".to_string(), year: 1949 },
+        Book { title: "To Kill a Mockingbird".to_string(), author: "Harper Lee".to_string(), year: 1960 },
+    ];
+
+    save_books(&books, "books.txt");
+    println!("Books saved to file.");
+
+    let loaded_books = load_books("books.txt");
+    println!("Loaded books:");
+    for book in loaded_books {
+        println!("{} by {}, published in {}", book.title, book.author, book.year);
+    }
 }
