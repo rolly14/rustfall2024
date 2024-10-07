@@ -1,65 +1,59 @@
-use std::fs::File;
-use std::io::{Write, BufReader, BufRead};
-
-struct Book {
-    title: String,
-    author: String,
-    year: u16,
+#[derive(Debug)]
+enum GradeLevel {
+    Bachelor,
+    Master,
+    PhD,
 }
-
-fn save_books(books: &Vec<Book>, filename: &str) {
-    // TODO: Implement this function
-    // Hint: Use File::create() and write!() macro
-    let mut file = File::create(filename).unwrap();
-    for book in books
-    {
-        writeln!(file," {}, {}, {}", book.title, book.author, book.year).unwrap();
-    }
-    
+#[derive(Debug)]
+enum Major 
+{
+    ComputerScience,
+    ElectricalEnginering,
 }
-
-fn load_books(filename: &str) -> Vec<Book> {
-    // TODO: Implement this function
-    // Hint: Use File::open() and BufReader
-    let file = File::open(filename).unwrap();
-    let reader = BufReader::new(file);
-
-    //this makes books mutability and creates new books 
-    let mut books = Vec::new();
-
-
-    for line in reader.lines()
+#[derive(Debug)]
+struct Student
+{
+    name: String,
+    grade: GradeLevel,
+    major: Major,
+}
+impl Student
+{
+    fn new(name:String, grade:GradeLevel, major:Major) -> Self
     {
-        //loop line 
-        let line = line.unwrap();
-        //would split the string with a ,(from line 16) the make them
-        //into substring seprating them 
-        let parts: Vec<&str> = line.split(',').collect();
-
-        //place them in order 
-        if parts.len() == 3
-        {
-            let title = parts[0].trim().to_string();
-            let author = parts[1].trim().to_string();
-            let year = parts[2].trim().parse::<u16>().unwrap();
-            books.push(Book {title, author, year});
+        Student{
+        name:name,
+        grade:grade,
+        major:major,
         }
     }
-    books
+    fn introduce_yourself(&self)
+        {
+            let grade = GradeLevel::Bachelor;
+            let major = Major::ComputerScience;
+
+            let grade_msg = match grade 
+            {
+                GradeLevel::Bachelor => "I am Bachelor",
+                GradeLevel::Master => "I am a Master",
+                GradeLevel::PhD => "I am PhD",
+            };
+
+            let major_msg = match major
+            {
+                Major::ComputerScience => "I am in Computer Science",
+                Major::ElectricalEnginering => " I am in Electrical Enginering"
+            };
+            
+            println!("My name is {} {} {}", self.name, grade_msg, major_msg);
+        }
+
 }
-
 fn main() {
-    let books = vec![
-        Book { title: "1984".to_string(), author: "George Orwell".to_string(), year: 1949 },
-        Book { title: "To Kill a Mockingbird".to_string(), author: "Harper Lee".to_string(), year: 1960 },
-    ];
+let s1 = Student::new("John".to_string(),
+    GradeLevel::Bachelor,
+    Major::ComputerScience);
+s1.introduce_yourself();
 
-    save_books(&books, "books.txt");
-    println!("Books saved to file.");
 
-    let loaded_books = load_books("books.txt");
-    println!("Loaded books:");
-    for book in loaded_books {
-        println!("{} by {}, published in {}", book.title, book.author, book.year);
-    }
 }
