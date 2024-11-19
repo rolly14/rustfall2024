@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use std::{fs, thread, time::Duration};
-use ureq;  // Ensure ureq is in Cargo.toml
+use ureq;
 
 #[derive(Debug)]
 struct Crypto {
@@ -26,13 +26,21 @@ pub trait Pricing {
     fn save_to_file(&self, price: f32);
 }
 
-// API response structure for deserialization (Bitcoin and Ethereum)
+#[derive(Debug, Deserialize)]
+struct Bitcoin {
+    bitcoin: CoinData,
+}
+
+#[derive(Debug, Deserialize)]
+struct Ethereum {
+    ethereum: CoinData,
+}
+
 #[derive(Debug, Deserialize)]
 struct CoinData {
     usd: f32,
 }
 
-// API response structure for S&P 500 
 #[derive(Debug, Deserialize)]
 struct SP500Data {
     chart: ChartData,
@@ -55,38 +63,53 @@ struct MetaData {
 
 impl Pricing for Crypto {
     fn fetch_price(&self) -> f32 {
-        let response: Result<ureq::Response, ureq::Error> = ureq::get(&self.api_address).call();
+        match self.coin_type {
+            CoinType::Bitcoin | CoinType::Ethereum => {
+                let response: Result<ureq::Response, ureq::Error> = ureq::get(&self.api_address).call();
 
-        match response {
-            Ok(res) => {
-                match res.into_string() {
-                    Ok(body) => {
-                        println!("Raw API response: {}", body);
-                        match serde_json::from_str::<serde_json::Value>(&body) {
-                            Ok(data) => {
-                                // Extract either Bitcoin or Ethereum price based on the coin type
-                                let price = match self.coin_type {
-                                    CoinType::Bitcoin => data["bitcoin"]["usd"].as_f64().unwrap_or(0.0) as f32,
-                                    CoinType::Ethereum => data["ethereum"]["usd"].as_f64().unwrap_or(0.0) as f32,
-                                };
-                                println!("Fetched price: ${}", price);
-                                return price;
+                match response {
+                    Ok(res) => {
+                        match res.into_string() {
+                            Ok(body) => {
+                                println!("Raw API response: {}", body);
+                                match self.coin_type {
+                                    CoinType::Bitcoin => {
+                                        match serde_json::from_str::<Bitcoin>(&body) {
+                                            Ok(data) => {
+                                                println!("Fetched Bitcoin price: ${}", data.bitcoin.usd);
+                                                data.bitcoin.usd
+                                            }
+                                            Err(e) => {
+                                                eprintln!("Failed to parse Bitcoin API response JSON: {}", e);
+                                                0.0
+                                            }
+                                        }
+                                    }
+                                    CoinType::Ethereum => {
+                                        match serde_json::from_str::<Ethereum>(&body) {
+                                            Ok(data) => {
+                                                println!("Fetched Ethereum price: ${}", data.ethereum.usd);
+                                                data.ethereum.usd
+                                            }
+                                            Err(e) => {
+                                                eprintln!("Failed to parse Ethereum API response JSON: {}", e);
+                                                0.0
+                                            }
+                                        }
+                                    }
+                                }
                             }
-                            Err(_) => {
-                                eprintln!("Failed to parse API response JSON. Response body: {}", body);
-                                return 0.0;
+                            Err(e) => {
+                                eprintln!("Failed to read the response body: {}", e);
+                                0.0
                             }
                         }
                     }
-                    Err(_) => {
-                        eprintln!("Failed to read the response body.");
-                        return 0.0;
+                    Err(e) => {
+                        eprintln!("Failed to fetch price: {}", e);
+                        0.0
                     }
                 }
-            }
-            Err(_) => {
-                eprintln!("Failed to fetch price.");
-                return 0.0;
             }
         }
     }
@@ -114,23 +137,23 @@ impl Pricing for SP500 {
                             Ok(data) => {
                                 let price = data.chart.result[0].meta.regularMarketPrice;
                                 println!("Fetched S&P 500 price: {}", price);
-                                return price;
+                                price
                             }
-                            Err(_) => {
-                                eprintln!("Failed to parse S&P 500 price JSON. Response body: {}", body);
-                                return 0.0;
+                            Err(e) => {
+                                eprintln!("Failed to parse S&P 500 price JSON: {}", e);
+                                0.0
                             }
                         }
                     }
-                    Err(_) => {
-                        eprintln!("Failed to read the S&P 500 response body.");
-                        return 0.0;
+                    Err(e) => {
+                        eprintln!("Failed to read the S&P 500 response body: {}", e);
+                        0.0
                     }
                 }
             }
-            Err(_) => {
-                eprintln!("Failed to fetch S&P 500 price.");
-                return 0.0;
+            Err(e) => {
+                eprintln!("Failed to fetch S&P 500 price: {}", e);
+                0.0
             }
         }
     }
@@ -150,20 +173,18 @@ fn main() {
     let eth_file = "eth_price.txt".to_string();
     let sp500_file = "sp500_price.txt".to_string();
 
-    // Create Crypto instances for Bitcoin and Ethereum
     let bitcoin = Crypto {
         api_address: btc_api,
         file_name: btc_file,
-        coin_type: CoinType::Bitcoin, // Set the CoinType to Bitcoin
+        coin_type: CoinType::Bitcoin,
     };
 
     let ethereum = Crypto {
         api_address: eth_api,
         file_name: eth_file,
-        coin_type: CoinType::Ethereum, // Set the CoinType to Ethereum
+        coin_type: CoinType::Ethereum,
     };
 
-    // Create SP500 instance as before
     let sp500 = SP500 {
         api_address: sp500_api,
         file_name: sp500_file,
@@ -179,6 +200,6 @@ fn main() {
         let sp500_price = sp500.fetch_price();
         sp500.save_to_file(sp500_price);
 
-        thread::sleep(Duration::new(10, 0));  // Sleep for 10 seconds
+        thread::sleep(Duration::new(10, 0));
     }
 }
